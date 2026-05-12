@@ -1725,9 +1725,11 @@
     // ── Google Sheets sync ──────────────────────────────────────────────────
     const GS_URL_KEY = "control_apuestas_gs_url";
 
+    const GS_DEFAULT_URL = "https://script.google.com/macros/s/AKfycbwmSwaipKIcW55KMD4-MfARFPUkWi35guJJoUSWJpwrnE47QUHOTDwe3wJHF6rkK25vHg/exec";
+
     (function loadGsUrl() {
-      const saved = localStorage.getItem(GS_URL_KEY);
-      if (saved) document.getElementById("gsUrl").value = saved;
+      const saved = localStorage.getItem(GS_URL_KEY) || GS_DEFAULT_URL;
+      document.getElementById("gsUrl").value = saved;
     })();
 
     function gsSetStatus(state, text) {
