@@ -14,9 +14,17 @@ const SHEET_NAME = "Apuestas";
 const META_SHEET = "Meta";
 
 function doGet(e) {
-  const action = e.parameter.action;
-  if (action === "load") return jsonResponse(loadData());
-  return jsonResponse({ status: "error", message: "Acción no reconocida" });
+  const action   = e.parameter.action;
+  const callback = e.parameter.callback;
+  const result   = (action === "load") ? loadData() : { status: "error", message: "Acción no reconocida" };
+  const json     = JSON.stringify(result);
+  // JSONP: si viene un parámetro callback, envolver la respuesta para evitar CORS
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + "(" + json + ")")
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {

@@ -1752,28 +1752,37 @@
       gsSetStatus("syncing", "Guardando…");
       try {
         const payload = { action: "save", bets, settings };
-        const res = await fetch(url, {
-          method: "POST",
-          body: JSON.stringify(payload)
-        });
-        const json = await res.json();
-        if (json.status === "ok") {
-          gsSetStatus("ok", `✓ Guardado — ${bets.length} apuesta${bets.length === 1 ? "" : "s"}`);
-        } else {
-          gsSetStatus("error", json.message || "Error desconocido");
-        }
+        // no-cors evita el bloqueo CORS de Apps Script (respuesta opaca, se asume éxito)
+        await fetch(url, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+        gsSetStatus("ok", `✓ Enviado — ${bets.length} apuesta${bets.length === 1 ? "" : "s"} (verifica en Sheets)`);
       } catch (err) {
         gsSetStatus("error", "Error de red: " + err.message);
       }
     }
 
-    async function gsLoad() {
+    function gsLoad() {
       const url = getGsUrl();
       if (!url) return;
       gsSetStatus("syncing", "Cargando…");
-      try {
-        const res = await fetch(url + "?action=load");
-        const json = await res.json();
+
+      // JSONP: inyecta un <script> para evitar bloqueo CORS en GET
+      const cbName = "gsCallback_" + Date.now();
+      const scriptEl = document.createElement("script");
+      scriptEl.src = url + "?action=load&callback=" + cbName;
+
+      const timeout = setTimeout(() => {
+        cleanup();
+        gsSetStatus("error", "Tiempo de espera agotado");
+      }, 15000);
+
+      function cleanup() {
+        clearTimeout(timeout);
+        delete window[cbName];
+        if (scriptEl.parentNode) scriptEl.parentNode.removeChild(scriptEl);
+      }
+
+      window[cbName] = function(json) {
+        cleanup();
         if (json.status === "ok" && Array.isArray(json.bets)) {
           bets = json.bets;
           if (json.settings) {
@@ -1788,9 +1797,14 @@
         } else {
           gsSetStatus("error", json.message || "Sin datos en Sheets");
         }
-      } catch (err) {
-        gsSetStatus("error", "Error de red: " + err.message);
-      }
+      };
+
+      scriptEl.onerror = function() {
+        cleanup();
+        gsSetStatus("error", "No se pudo conectar con Apps Script");
+      };
+
+      document.body.appendChild(scriptEl);
     }
     // ────────────────────────────────────────────────────────────────────────
 
