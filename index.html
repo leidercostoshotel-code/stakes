@@ -835,6 +835,47 @@
       margin-top: 3px;
     }
 
+    /* ── Google Sheets Sync ─────────────────── */
+    .gs-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      margin-top: 10px;
+    }
+    .gs-status.idle    { background: rgba(148,163,184,.12); color: #94a3b8; border: 1px solid rgba(148,163,184,.2); }
+    .gs-status.ok      { background: rgba(34,197,94,.12);  color: #86efac; border: 1px solid rgba(34,197,94,.25); }
+    .gs-status.error   { background: rgba(239,68,68,.12);  color: #fca5a5; border: 1px solid rgba(239,68,68,.25); }
+    .gs-status.syncing { background: rgba(56,189,248,.12); color: #7dd3fc; border: 1px solid rgba(56,189,248,.25); }
+    .gs-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .gs-status.syncing .gs-dot { animation: pulse 1s ease-in-out infinite; }
+    .gs-help {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(56,189,248,.06);
+      border: 1px solid rgba(56,189,248,.12);
+    }
+    .gs-help code {
+      font-family: "Fira Mono", "Courier New", monospace;
+      background: rgba(0,0,0,.35);
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-size: 11px;
+      color: #93c5fd;
+    }
+
     @media print {
       body {
         background: white !important;
@@ -1019,6 +1060,33 @@
           <button type="submit" id="saveBtn">Guardar apuesta</button>
           <button type="button" class="secondary" onclick="resetForm()">Limpiar formulario</button>
         </form>
+
+        <div style="height:18px"></div>
+
+        <div class="card-title">
+          <h2>📊 Google Sheets</h2>
+          <span class="badge">Sincronización</span>
+        </div>
+        <div>
+          <label>URL del Apps Script</label>
+          <input id="gsUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+        </div>
+        <div style="height:10px"></div>
+        <div class="btn-row">
+          <button class="secondary" onclick="gsSend()">☁️ Guardar en Sheets</button>
+          <button class="secondary" onclick="gsLoad()">⬇️ Cargar desde Sheets</button>
+        </div>
+        <div id="gsStatus" class="gs-status idle"><span class="gs-dot"></span><span id="gsStatusText">Sin conectar</span></div>
+        <details style="margin-top:12px">
+          <summary style="cursor:pointer;font-size:12px;color:#7dd3fc;font-weight:700;">ℹ️ Cómo configurarlo</summary>
+          <div class="gs-help">
+            1. Ve a <strong>script.google.com</strong> y crea un proyecto nuevo.<br>
+            2. Pega el código del archivo <code>apps-script.js</code> (incluido en el repo).<br>
+            3. Haz clic en <strong>Implementar → Nueva implementación</strong> como <em>Aplicación web</em>, acceso: <em>Cualquier persona</em>.<br>
+            4. Copia la URL generada y pégala arriba.<br>
+            5. Usa <strong>Guardar en Sheets</strong> para enviar tus apuestas.
+          </div>
+        </details>
 
         <div style="height:18px"></div>
 
@@ -1653,6 +1721,76 @@
       closeResetModal();
       render();
     }
+
+    // ── Google Sheets sync ──────────────────────────────────────────────────
+    const GS_URL_KEY = "control_apuestas_gs_url";
+
+    (function loadGsUrl() {
+      const saved = localStorage.getItem(GS_URL_KEY);
+      if (saved) document.getElementById("gsUrl").value = saved;
+    })();
+
+    function gsSetStatus(state, text) {
+      const el = document.getElementById("gsStatus");
+      const textEl = document.getElementById("gsStatusText");
+      el.className = "gs-status " + state;
+      textEl.textContent = text;
+    }
+
+    function getGsUrl() {
+      const url = document.getElementById("gsUrl").value.trim();
+      if (!url) { gsSetStatus("error", "Falta la URL del Apps Script"); return null; }
+      localStorage.setItem(GS_URL_KEY, url);
+      return url;
+    }
+
+    async function gsSend() {
+      const url = getGsUrl();
+      if (!url) return;
+      gsSetStatus("syncing", "Guardando…");
+      try {
+        const payload = { action: "save", bets, settings };
+        const res = await fetch(url, {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.status === "ok") {
+          gsSetStatus("ok", `✓ Guardado — ${bets.length} apuesta${bets.length === 1 ? "" : "s"}`);
+        } else {
+          gsSetStatus("error", json.message || "Error desconocido");
+        }
+      } catch (err) {
+        gsSetStatus("error", "Error de red: " + err.message);
+      }
+    }
+
+    async function gsLoad() {
+      const url = getGsUrl();
+      if (!url) return;
+      gsSetStatus("syncing", "Cargando…");
+      try {
+        const res = await fetch(url + "?action=load");
+        const json = await res.json();
+        if (json.status === "ok" && Array.isArray(json.bets)) {
+          bets = json.bets;
+          if (json.settings) {
+            settings = json.settings;
+            document.getElementById("bancaInicial").value = settings.bancaInicial || "";
+            document.getElementById("unidadPct").value = settings.unidadPct || "";
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+          }
+          saveBets();
+          render();
+          gsSetStatus("ok", `✓ Cargado — ${bets.length} apuesta${bets.length === 1 ? "" : "s"}`);
+        } else {
+          gsSetStatus("error", json.message || "Sin datos en Sheets");
+        }
+      } catch (err) {
+        gsSetStatus("error", "Error de red: " + err.message);
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     // Cerrar modal con Escape
     document.addEventListener("keydown", e => {
