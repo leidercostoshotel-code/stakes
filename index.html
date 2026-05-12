@@ -1731,8 +1731,9 @@
     const GS_DEFAULT_URL = "https://script.google.com/macros/s/AKfycbwHREDSPcrY9WQjP7shdFfX65FrPvvlozeRz0jfDVJ8BK4En_JRQCfzY_Reea7iEiJ3fg/exec";
 
     (function loadGsUrl() {
-      const saved = localStorage.getItem(GS_URL_KEY) || GS_DEFAULT_URL;
-      document.getElementById("gsUrl").value = saved;
+      // Siempre usa la URL por defecto del código; borra cualquier valor viejo en localStorage
+      localStorage.setItem(GS_URL_KEY, GS_DEFAULT_URL);
+      document.getElementById("gsUrl").value = GS_DEFAULT_URL;
     })();
 
     function gsSetStatus(state, text) {
