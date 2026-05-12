@@ -1319,12 +1319,14 @@
 
     function saveBets() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(bets));
+      gsAutoSync();
     }
 
     function saveSettings() {
       settings.bancaInicial = parseFloat(document.getElementById("bancaInicial").value) || 0;
       settings.unidadPct = parseFloat(document.getElementById("unidadPct").value) || 2;
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      gsAutoSync();
       render();
     }
 
@@ -1720,6 +1722,7 @@
       resetForm();
       closeResetModal();
       render();
+      gsAutoSync();
     }
 
     // ── Google Sheets sync ──────────────────────────────────────────────────
@@ -1744,6 +1747,28 @@
       if (!url) { gsSetStatus("error", "Falta la URL del Apps Script"); return null; }
       localStorage.setItem(GS_URL_KEY, url);
       return url;
+    }
+
+    let gsSyncTimer = null;
+    function gsAutoSync() {
+      const url = localStorage.getItem(GS_URL_KEY) || GS_DEFAULT_URL;
+      if (!url) return;
+      // debounce: espera 1.5s tras el último cambio antes de enviar
+      clearTimeout(gsSyncTimer);
+      gsSetStatus("syncing", "Sincronizando…");
+      gsSyncTimer = setTimeout(() => {
+        _gsSendSilent(url);
+      }, 1500);
+    }
+
+    async function _gsSendSilent(url) {
+      try {
+        const payload = { action: "save", bets, settings };
+        await fetch(url, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+        gsSetStatus("ok", `✓ Guardado en Sheets — ${bets.length} apuesta${bets.length === 1 ? "" : "s"}`);
+      } catch (err) {
+        gsSetStatus("error", "Error al sincronizar: " + err.message);
+      }
     }
 
     async function gsSend() {
