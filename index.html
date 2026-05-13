@@ -1804,6 +1804,9 @@
       // Show user pill
       renderUserPill();
 
+      // Render with any locally cached bets first, then sync from Sheets
+      render();
+
       // Load user data from Sheets
       gsLoadForUser();
     }
@@ -2320,7 +2323,17 @@
         .replaceAll("'", "&#039;");
     }
 
-    render();
+    // ── Auto-login on page load ──────────────────────────────────────────────
+    (function checkExistingSession() {
+      const session = loadSession();
+      if (session && session.email && session.passwordHash) {
+        // Auto-login silently — skip overlay
+        enterApp({ email: session.email, name: session.name || session.email, passwordHash: session.passwordHash });
+      } else {
+        // Show auth overlay
+        render();
+      }
+    })();
 
     function openResetModal() {
       document.getElementById("resetCount").textContent = bets.length;
@@ -2345,9 +2358,6 @@
     }
 
     // ── Google Sheets sync ──────────────────────────────────────────────────
-    const GS_URL_KEY = "control_apuestas_gs_url";
-
-    const GS_DEFAULT_URL = "https://script.google.com/macros/s/AKfycbwHREDSPcrY9WQjP7shdFfX65FrPvvlozeRz0jfDVJ8BK4En_JRQCfzY_Reea7iEiJ3fg/exec";
 
     (function loadGsUrl() {
       // Siempre usa la URL por defecto del código; borra cualquier valor viejo en localStorage
@@ -2384,6 +2394,10 @@
     async function _gsSendSilent(url) {
       try {
         const payload = { action: "save", bets, settings };
+        if (currentUser) {
+          payload.userId = currentUser.email;
+          payload.passwordHash = currentUser.passwordHash;
+        }
         await fetch(url, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
         gsSetStatus("ok", `✓ Guardado en Sheets — ${bets.length} apuesta${bets.length === 1 ? "" : "s"}`);
       } catch (err) {
@@ -2397,6 +2411,10 @@
       gsSetStatus("syncing", "Guardando…");
       try {
         const payload = { action: "save", bets, settings };
+        if (currentUser) {
+          payload.userId = currentUser.email;
+          payload.passwordHash = currentUser.passwordHash;
+        }
         // no-cors evita el bloqueo CORS de Apps Script (respuesta opaca, se asume éxito)
         await fetch(url, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
         gsSetStatus("ok", `✓ Enviado — ${bets.length} apuesta${bets.length === 1 ? "" : "s"} (verifica en Sheets)`);
@@ -2405,19 +2423,14 @@
       }
     }
 
-    function gsLoad() {
-      const url = getGsUrl();
-      if (!url) return;
-      gsSetStatus("syncing", "Cargando…");
-
+    function _gsLoadViaJSONP(url, onSuccess, onError) {
       // JSONP: inyecta un <script> para evitar bloqueo CORS en GET
       const cbName = "gsCallback_" + Date.now();
       const scriptEl = document.createElement("script");
-      scriptEl.src = url + "?action=load&callback=" + cbName;
-
+      let src = url;
       const timeout = setTimeout(() => {
         cleanup();
-        gsSetStatus("error", "Tiempo de espera agotado");
+        onError("Tiempo de espera agotado");
       }, 15000);
 
       function cleanup() {
@@ -2426,30 +2439,78 @@
         if (scriptEl.parentNode) scriptEl.parentNode.removeChild(scriptEl);
       }
 
-      window[cbName] = function(json) {
-        cleanup();
-        if (json.status === "ok" && Array.isArray(json.bets)) {
-          bets = json.bets;
-          if (json.settings) {
-            settings = json.settings;
-            document.getElementById("bancaInicial").value = settings.bancaInicial || "";
-            document.getElementById("unidadPct").value = settings.unidadPct || "";
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-          }
-          saveBets();
-          render();
-          gsSetStatus("ok", `✓ Cargado — ${bets.length} apuesta${bets.length === 1 ? "" : "s"}`);
-        } else {
-          gsSetStatus("error", json.message || "Sin datos en Sheets");
-        }
-      };
+      window[cbName] = function(json) { cleanup(); onSuccess(json); };
+      scriptEl.onerror = function() { cleanup(); onError("No se pudo conectar con Apps Script"); };
 
-      scriptEl.onerror = function() {
-        cleanup();
-        gsSetStatus("error", "No se pudo conectar con Apps Script");
-      };
-
+      // Append callback param
+      src += (src.includes("?") ? "&" : "?") + "callback=" + cbName;
+      scriptEl.src = src;
       document.body.appendChild(scriptEl);
+    }
+
+    function gsLoadForUser() {
+      const url = localStorage.getItem(GS_URL_KEY) || GS_DEFAULT_URL;
+      if (!url || !currentUser) return;
+      gsSetStatus("syncing", "Cargando tus apuestas…");
+      const src = url + "?action=load&userId=" + encodeURIComponent(currentUser.email) +
+                  "&passwordHash=" + encodeURIComponent(currentUser.passwordHash);
+      _gsLoadViaJSONP(src,
+        function(json) {
+          if (json.status === "ok" && Array.isArray(json.bets)) {
+            bets = json.bets;
+            if (json.settings) {
+              settings = json.settings;
+              document.getElementById("bancaInicial").value = settings.bancaInicial || "";
+              document.getElementById("unidadPct").value = settings.unidadPct || "";
+              localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(bets));
+            render();
+            gsSetStatus("ok", `✓ Cargado — ${bets.length} apuesta${bets.length === 1 ? "" : "s"}`);
+          } else {
+            gsSetStatus("error", json.message || "Sin datos en Sheets");
+            render();
+          }
+        },
+        function(errMsg) {
+          gsSetStatus("error", errMsg);
+          render();
+        }
+      );
+    }
+
+    function gsLoad() {
+      const url = getGsUrl();
+      if (!url) return;
+      gsSetStatus("syncing", "Cargando…");
+
+      let src = url + "?action=load";
+      if (currentUser) {
+        src += "&userId=" + encodeURIComponent(currentUser.email) +
+               "&passwordHash=" + encodeURIComponent(currentUser.passwordHash);
+      }
+
+      _gsLoadViaJSONP(src,
+        function(json) {
+          if (json.status === "ok" && Array.isArray(json.bets)) {
+            bets = json.bets;
+            if (json.settings) {
+              settings = json.settings;
+              document.getElementById("bancaInicial").value = settings.bancaInicial || "";
+              document.getElementById("unidadPct").value = settings.unidadPct || "";
+              localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(bets));
+            render();
+            gsSetStatus("ok", `✓ Cargado — ${bets.length} apuesta${bets.length === 1 ? "" : "s"}`);
+          } else {
+            gsSetStatus("error", json.message || "Sin datos en Sheets");
+          }
+        },
+        function(errMsg) {
+          gsSetStatus("error", errMsg);
+        }
+      );
     }
     // ────────────────────────────────────────────────────────────────────────
 
