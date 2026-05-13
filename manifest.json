@@ -1,0 +1,22 @@
+{
+  "name": "BetControl Pro",
+  "short_name": "BetControl",
+  "description": "Control profesional de apuestas deportivas",
+  "start_url": "/stakes/",
+  "scope": "/stakes/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#020810",
+  "theme_color": "#020810",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23070b18'/%3E%3Ccircle cx='256' cy='256' r='180' fill='none' stroke='%23fff' stroke-width='14'/%3E%3Cpolygon points='256,100 278,152 230,152' fill='%23fff'/%3E%3Cpolygon points='256,412 278,360 230,360' fill='%23fff'/%3E%3Cpolygon points='100,256 152,234 152,278' fill='%23fff'/%3E%3Cpolygon points='412,256 360,234 360,278' fill='%23fff'/%3E%3Cpolygon points='131,131 176,176 138,200' fill='%23fff'/%3E%3Cpolygon points='381,131 336,176 374,200' fill='%23fff'/%3E%3Cpolygon points='131,381 176,336 138,312' fill='%23fff'/%3E%3Cpolygon points='381,381 336,336 374,312' fill='%23fff'/%3E%3Ccircle cx='256' cy='256' r='52' fill='%2338bdf8'/%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["sports", "finance", "productivity"],
+  "lang": "es",
+  "dir": "ltr"
+}

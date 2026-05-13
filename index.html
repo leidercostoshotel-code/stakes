@@ -8,6 +8,10 @@
   <meta name="theme-color" content="#020810" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BetControl" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="application-name" content="BetControl Pro" />
+  <link rel="manifest" href="manifest.json" />
   <style>
     :root {
       --bg: #070b18;
@@ -2912,6 +2916,13 @@
     document.getElementById("resetModal").addEventListener("click", function(e) {
       if (e.target === this) closeResetModal();
     });
+
+    // ── PWA: registrar Service Worker ────────────────────────────────────────
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/stakes/sw.js").catch(() => {});
+      });
+    }
   </script>
 </body>
 </html>
