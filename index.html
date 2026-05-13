@@ -1230,6 +1230,18 @@
       cursor: pointer;
       accent-color: #38bdf8;
     }
+    .auth-forgot-link {
+      background: none;
+      border: none;
+      color: #38bdf8;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+      box-shadow: none;
+      transition: color .18s;
+    }
+    .auth-forgot-link:hover { color: #7dd3fc; transform: none; box-shadow: none; }
 
     /* Error message */
     .auth-error {
@@ -1442,16 +1454,70 @@
             <button type="button" class="auth-toggle-btn" onclick="togglePassword('loginPassword', this)" title="Mostrar/ocultar">👁</button>
           </div>
         </div>
-        <label class="auth-remember">
-          <input type="checkbox" id="loginRemember" checked />
-          Recordarme
-        </label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px">
+          <label class="auth-remember">
+            <input type="checkbox" id="loginRemember" checked />
+            Recordarme
+          </label>
+          <button type="button" class="auth-forgot-link" onclick="showResetStep(1)">¿Olvidaste tu contraseña?</button>
+        </div>
         <div class="auth-error" id="loginError"></div>
         <button type="submit" class="auth-submit" id="loginSubmit">
           <span class="auth-spinner" id="loginSpinner"></span>
           <span id="loginBtnText">Iniciar sesión</span>
         </button>
       </form>
+
+      <!-- Reset password flow -->
+      <div class="auth-form" id="formReset">
+        <!-- Step 1: enter email -->
+        <div id="resetStep1">
+          <p style="color:#94a3b8;font-size:13px;margin-bottom:16px">Ingresa tu email y te enviaremos un código de 6 dígitos.</p>
+          <div class="auth-field">
+            <label>Email de tu cuenta</label>
+            <input type="email" id="resetEmail" placeholder="tu@email.com" autocomplete="email" />
+          </div>
+          <div class="auth-error" id="resetError1"></div>
+          <button type="button" class="auth-submit" id="resetSubmit1" onclick="handleRequestReset()">
+            <span class="auth-spinner" id="resetSpinner1"></span>
+            <span id="resetBtn1Text">Enviar código</span>
+          </button>
+        </div>
+        <!-- Step 2: enter code -->
+        <div id="resetStep2" style="display:none">
+          <p style="color:#94a3b8;font-size:13px;margin-bottom:16px">Revisa tu bandeja de entrada. Ingresa el código de 6 dígitos (válido 15 min).</p>
+          <div class="auth-field">
+            <label>Código de verificación</label>
+            <input type="text" id="resetCode" placeholder="000000" maxlength="6" style="letter-spacing:8px;font-size:22px;text-align:center;font-weight:900" />
+          </div>
+          <div class="auth-error" id="resetError2"></div>
+          <button type="button" class="auth-submit" onclick="handleVerifyCode()">
+            <span class="auth-spinner" id="resetSpinner2"></span>
+            <span id="resetBtn2Text">Verificar código</span>
+          </button>
+        </div>
+        <!-- Step 3: new password -->
+        <div id="resetStep3" style="display:none">
+          <p style="color:#94a3b8;font-size:13px;margin-bottom:16px">Crea tu nueva contraseña.</p>
+          <div class="auth-field">
+            <label>Nueva contraseña</label>
+            <div class="auth-input-wrap">
+              <input type="password" id="resetNewPwd" class="has-toggle" placeholder="Mínimo 6 caracteres" />
+              <button type="button" class="auth-toggle-btn" onclick="togglePassword('resetNewPwd', this)" title="Mostrar/ocultar">👁</button>
+            </div>
+          </div>
+          <div class="auth-field">
+            <label>Confirmar contraseña</label>
+            <input type="password" id="resetNewPwd2" placeholder="Repite la contraseña" />
+          </div>
+          <div class="auth-error" id="resetError3"></div>
+          <button type="button" class="auth-submit" onclick="handleConfirmReset()">
+            <span class="auth-spinner" id="resetSpinner3"></span>
+            <span id="resetBtn3Text">Cambiar contraseña</span>
+          </button>
+        </div>
+        <button type="button" class="auth-forgot-link" style="margin-top:14px;display:block;text-align:center" onclick="showResetStep(0)">← Volver al login</button>
+      </div>
 
       <!-- Register form -->
       <form class="auth-form" id="formRegister" onsubmit="handleRegister(event)">
@@ -1849,7 +1915,110 @@
       document.getElementById("tabRegister").classList.toggle("active", tab === "register");
       document.getElementById("formLogin").classList.toggle("active", tab === "login");
       document.getElementById("formRegister").classList.toggle("active", tab === "register");
+      document.getElementById("formReset").classList.remove("active");
     }
+
+    // ── Password reset flow ───────────────────────────────────────────────────
+    let _resetEmail = "";
+
+    function showResetStep(step) {
+      const formLogin  = document.getElementById("formLogin");
+      const formReset  = document.getElementById("formReset");
+      const titleEl    = document.querySelector(".auth-title");
+      const subEl      = document.querySelector(".auth-subtitle");
+
+      if (step === 0) {
+        formLogin.classList.add("active");
+        formReset.classList.remove("active");
+        if (titleEl)  titleEl.textContent = "Accede a tu cuenta";
+        if (subEl)    subEl.innerHTML = "Controla tus apuestas. Analiza tu rendimiento.<br>Protege tu banca.";
+        return;
+      }
+      formLogin.classList.remove("active");
+      formReset.classList.add("active");
+      document.getElementById("resetStep1").style.display = "";
+      document.getElementById("resetStep2").style.display = "none";
+      document.getElementById("resetStep3").style.display = "none";
+      ["resetError1","resetError2","resetError3"].forEach(id => { document.getElementById(id).textContent = ""; });
+      if (titleEl)  titleEl.textContent = "Recuperar contraseña";
+      if (subEl)    subEl.textContent   = "";
+    }
+
+    function setResetBtn(n, loading) {
+      document.getElementById("resetSpinner" + n).style.display = loading ? "inline-block" : "none";
+      document.getElementById("resetBtn"    + n + "Text").textContent = loading
+        ? "Procesando…"
+        : (n === 1 ? "Enviar código" : n === 2 ? "Verificar código" : "Cambiar contraseña");
+      document.querySelectorAll("#formReset button.auth-submit").forEach(b => b.disabled = loading);
+    }
+
+    async function handleRequestReset() {
+      const email = document.getElementById("resetEmail").value.trim().toLowerCase();
+      const errEl = document.getElementById("resetError1");
+      errEl.textContent = "";
+      if (!email) { errEl.textContent = "Ingresa tu email."; return; }
+      setResetBtn(1, true);
+      try {
+        const res = await authJsonp({ action: "requestReset", userId: email });
+        if (res.status === "ok") {
+          _resetEmail = email;
+          document.getElementById("resetStep1").style.display = "none";
+          document.getElementById("resetStep2").style.display = "";
+          document.getElementById("resetCode").value = "";
+          document.getElementById("resetCode").focus();
+        } else {
+          errEl.textContent = res.message || "Error al enviar el código.";
+        }
+      } catch (err) {
+        errEl.textContent = "Error de conexión: " + err.message;
+      }
+      setResetBtn(1, false);
+    }
+
+    async function handleVerifyCode() {
+      const code  = document.getElementById("resetCode").value.trim();
+      const errEl = document.getElementById("resetError2");
+      errEl.textContent = "";
+      if (code.length !== 6) { errEl.textContent = "El código debe tener 6 dígitos."; return; }
+      setResetBtn(2, true);
+      try {
+        // Verificamos el código haciendo un confirmReset con newPasswordHash vacío — si el código es válido, el server responde ok
+        // En su lugar simplemente avanzamos al paso 3 y verificamos al cambiar
+        document.getElementById("resetStep2").style.display = "none";
+        document.getElementById("resetStep3").style.display = "";
+        document.getElementById("resetNewPwd").focus();
+      } catch (err) {
+        errEl.textContent = "Error: " + err.message;
+      }
+      setResetBtn(2, false);
+    }
+
+    async function handleConfirmReset() {
+      const pwd   = document.getElementById("resetNewPwd").value;
+      const pwd2  = document.getElementById("resetNewPwd2").value;
+      const code  = document.getElementById("resetCode").value.trim();
+      const errEl = document.getElementById("resetError3");
+      errEl.textContent = "";
+      if (pwd.length < 6)    { errEl.textContent = "La contraseña debe tener al menos 6 caracteres."; return; }
+      if (pwd !== pwd2)      { errEl.textContent = "Las contraseñas no coinciden."; return; }
+      setResetBtn(3, true);
+      try {
+        const newHash = await sha256(_resetEmail + ":" + pwd);
+        const res = await authJsonp({ action: "confirmReset", userId: _resetEmail, code, newPasswordHash: newHash });
+        if (res.status === "ok") {
+          showResetStep(0);
+          document.getElementById("loginEmail").value = _resetEmail;
+          document.getElementById("loginError").style.color = "#86efac";
+          document.getElementById("loginError").textContent = "✓ Contraseña actualizada. Ahora puedes iniciar sesión.";
+        } else {
+          errEl.textContent = res.message || "Código incorrecto o expirado.";
+        }
+      } catch (err) {
+        errEl.textContent = "Error: " + err.message;
+      }
+      setResetBtn(3, false);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     function togglePassword(inputId, btn) {
       const inp = document.getElementById(inputId);
