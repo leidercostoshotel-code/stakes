@@ -884,45 +884,183 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(2, 8, 16, 0.92);
-      backdrop-filter: blur(18px) saturate(1.4);
-      -webkit-backdrop-filter: blur(18px) saturate(1.4);
+      /* Fondo: imagen de estadio + capas de color */
+      background-image:
+        url("https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1920&q=85");
+      background-size: cover;
+      background-position: center 30%;
       transition: opacity .35s ease;
+      overflow: hidden;
     }
+
+    /* Capa oscura sobre la imagen */
+    .auth-overlay::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(2, 6, 18, 0.88) 0%,
+        rgba(4, 12, 30, 0.80) 50%,
+        rgba(10, 4, 25, 0.88) 100%
+      );
+      z-index: 0;
+    }
+
+    /* Línea de luz superior (efecto neón) */
+    .auth-overlay::after {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(56,189,248,.7), rgba(167,139,250,.7), transparent);
+      z-index: 1;
+    }
+
     .auth-overlay.hidden {
       opacity: 0;
       pointer-events: none;
     }
 
+    /* Panel lateral izquierdo con stats decorativos */
+    .auth-side {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 42%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 48px;
+      z-index: 9002;
+    }
+
+    .auth-side-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: rgba(56,189,248,.12);
+      border: 1px solid rgba(56,189,248,.28);
+      color: #7dd3fc;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .5px;
+      margin-bottom: 28px;
+      width: fit-content;
+    }
+
+    .auth-side-tag span {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 8px #38bdf8;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    .auth-side h2 {
+      font-size: clamp(28px, 3.2vw, 44px);
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #ffffff 30%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .auth-side p {
+      color: rgba(203,213,225,.65);
+      font-size: 15px;
+      line-height: 1.65;
+      margin-bottom: 40px;
+      max-width: 380px;
+    }
+
+    .auth-features {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .auth-feature {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      backdrop-filter: blur(8px);
+      transition: background .2s;
+    }
+
+    .auth-feature:hover { background: rgba(255,255,255,.07); }
+
+    .auth-feature-icon {
+      font-size: 22px;
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      background: rgba(56,189,248,.10);
+      border: 1px solid rgba(56,189,248,.18);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .auth-feature-text strong {
+      display: block;
+      font-size: 13px;
+      color: #e2e8f0;
+      margin-bottom: 2px;
+    }
+
+    .auth-feature-text span {
+      font-size: 12px;
+      color: rgba(148,163,184,.7);
+    }
+
     /* Animated orbs behind the card */
     .auth-orb {
-      position: fixed;
+      position: absolute;
       border-radius: 50%;
       pointer-events: none;
-      z-index: 9001;
+      z-index: 1;
     }
     .auth-orb-1 {
-      width: 520px; height: 520px;
-      top: -120px; left: -100px;
-      background: radial-gradient(circle, rgba(56,189,248,.18), transparent 65%);
+      width: 600px; height: 600px;
+      top: -180px; left: -120px;
+      background: radial-gradient(circle, rgba(56,189,248,.15), transparent 65%);
       animation: floatGlow 7s ease-in-out infinite alternate;
     }
     .auth-orb-2 {
-      width: 420px; height: 420px;
-      bottom: -80px; right: -80px;
-      background: radial-gradient(circle, rgba(167,139,250,.18), transparent 65%);
+      width: 500px; height: 500px;
+      bottom: -120px; right: -80px;
+      background: radial-gradient(circle, rgba(167,139,250,.15), transparent 65%);
       animation: floatGlow 9s ease-in-out infinite alternate-reverse;
     }
     .auth-orb-3 {
-      width: 280px; height: 280px;
-      top: 45%; left: 55%;
-      background: radial-gradient(circle, rgba(34,197,94,.10), transparent 65%);
+      width: 300px; height: 300px;
+      top: 40%; left: 38%;
+      background: radial-gradient(circle, rgba(34,197,94,.08), transparent 65%);
       animation: floatGlow 11s ease-in-out infinite alternate;
+    }
+
+    /* Línea vertical divisoria */
+    .auth-divider-line {
+      position: absolute;
+      left: 42%; top: 8%; bottom: 8%;
+      width: 1px;
+      background: linear-gradient(to bottom, transparent, rgba(255,255,255,.10) 30%, rgba(255,255,255,.10) 70%, transparent);
+      z-index: 9002;
+    }
+
+    @media (max-width: 900px) {
+      .auth-side, .auth-divider-line { display: none; }
     }
 
     .auth-card {
       position: relative;
-      z-index: 9002;
+      z-index: 9003;
       width: min(460px, 94vw);
       background: linear-gradient(145deg, rgba(0, 8, 22, .90), rgba(5, 15, 42, .85));
       border: 1px solid rgba(255,255,255,.18);
@@ -1236,6 +1374,46 @@
     <div class="auth-orb auth-orb-1"></div>
     <div class="auth-orb auth-orb-2"></div>
     <div class="auth-orb auth-orb-3"></div>
+
+    <!-- Panel izquierdo decorativo -->
+    <div class="auth-side">
+      <div class="auth-side-tag"><span></span> LIVE TRACKING</div>
+      <h2>El control definitivo de tus apuestas deportivas.</h2>
+      <p>Registra cada jugada, analiza tus rachas y protege tu banca con inteligencia. Todo en un solo lugar.</p>
+      <div class="auth-features">
+        <div class="auth-feature">
+          <div class="auth-feature-icon">📊</div>
+          <div class="auth-feature-text">
+            <strong>ROI y rendimiento en tiempo real</strong>
+            <span>Estadísticas detalladas por mercado y tipo</span>
+          </div>
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">🔒</div>
+          <div class="auth-feature-text">
+            <strong>Datos privados por usuario</strong>
+            <span>Cada cuenta tiene su propio historial aislado</span>
+          </div>
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">☁️</div>
+          <div class="auth-feature-text">
+            <strong>Sincronización con Google Sheets</strong>
+            <span>Tu información siempre respaldada en la nube</span>
+          </div>
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">🏆</div>
+          <div class="auth-feature-text">
+            <strong>Rachas y gestión de banca</strong>
+            <span>Cuota, stake, confianza y más por cada jugada</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Línea divisoria -->
+    <div class="auth-divider-line"></div>
 
     <div class="auth-card">
       <div class="auth-logo">
