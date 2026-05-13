@@ -1838,7 +1838,6 @@
     function logout() {
       clearSession();
       currentUser = null;
-      // Clear local bets and reset
       bets = [];
       settings = { bancaInicial: 0, unidadPct: 2 };
       localStorage.removeItem(STORAGE_KEY);
@@ -1848,6 +1847,14 @@
       document.getElementById("userPill").innerHTML = "";
       resetForm();
       render();
+      // Limpiar todos los campos del formulario de auth
+      ["loginEmail","loginPassword","regName","regEmail","regPassword","regPassword2"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+      // Volver a la pestaña de login
+      const loginTab = document.querySelector(".auth-tab[data-tab='login']");
+      if (loginTab) loginTab.click();
       // Show overlay again
       const overlay = document.getElementById("authOverlay");
       overlay.style.display = "";
