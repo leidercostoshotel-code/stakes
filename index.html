@@ -1734,32 +1734,10 @@
 
         <div style="height:18px"></div>
 
-        <div class="card-title">
-          <h2>📊 Google Sheets</h2>
-          <span class="badge">Sincronización</span>
-        </div>
-        <div>
-          <label>URL del Apps Script</label>
-          <input id="gsUrl" placeholder="https://script.google.com/macros/s/.../exec" />
-        </div>
-        <div style="height:10px"></div>
-        <div class="btn-row">
-          <button class="secondary" onclick="gsSend()">☁️ Guardar en Sheets</button>
-          <button class="secondary" onclick="gsLoad()">⬇️ Cargar desde Sheets</button>
-        </div>
-        <div id="gsStatus" class="gs-status idle"><span class="gs-dot"></span><span id="gsStatusText">Sin conectar</span></div>
-        <details style="margin-top:12px">
-          <summary style="cursor:pointer;font-size:12px;color:#7dd3fc;font-weight:700;">ℹ️ Cómo configurarlo</summary>
-          <div class="gs-help">
-            1. Ve a <strong>script.google.com</strong> y crea un proyecto nuevo.<br>
-            2. Pega el código del archivo <code>apps-script.js</code> (incluido en el repo).<br>
-            3. Haz clic en <strong>Implementar → Nueva implementación</strong> como <em>Aplicación web</em>, acceso: <em>Cualquier persona</em>.<br>
-            4. Copia la URL generada y pégala arriba.<br>
-            5. Usa <strong>Guardar en Sheets</strong> para enviar tus apuestas.
-          </div>
-        </details>
-
-        <div style="height:18px"></div>
+        <!-- gsUrl oculto — solo para compatibilidad interna -->
+        <input id="gsUrl" type="hidden" />
+        <div id="gsStatus" style="display:none"></div>
+        <span id="gsStatusText" style="display:none"></span>
 
         <div class="card-title">
           <h2>🏦 Configuración</h2>
