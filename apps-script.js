@@ -74,13 +74,11 @@ function doGet(e) {
   const passwordHash = e.parameter.passwordHash || "";
   let result;
 
-  if      (action === "load")     result = loadData(userId, passwordHash);
-  else if (action === "login")    result = loginUser({ email: userId, passwordHash });
-  else if (action === "register") result = registerUser({
-    name: e.parameter.name || "",
-    email: userId,
-    passwordHash
-  });
+  if      (action === "load")         result = loadData(userId, passwordHash);
+  else if (action === "login")        result = loginUser({ email: userId, passwordHash });
+  else if (action === "register")     result = registerUser({ name: e.parameter.name || "", email: userId, passwordHash });
+  else if (action === "requestReset") result = requestReset(userId);
+  else if (action === "confirmReset") result = confirmReset({ email: userId, code: e.parameter.code || "", newPasswordHash: e.parameter.newPasswordHash || "" });
   else result = { status: "error", message: "Acción no reconocida" };
 
   const json = JSON.stringify(result);
@@ -136,6 +134,105 @@ function loginUser(payload) {
   }
 
   return { status: "ok", name: user.name };
+}
+
+// ── Password reset ────────────────────────────────────────────────────────────
+
+function requestReset(email) {
+  if (!email) return { status: "error", message: "Email requerido" };
+
+  const user = findUser(email);
+  if (!user) return { status: "error", message: "No existe una cuenta con ese email" };
+
+  const code    = String(Math.floor(100000 + Math.random() * 900000)); // 6 dígitos
+  const expiry  = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 min
+
+  // Guardar código en hoja ResetTokens
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  let rtSheet = ss.getSheetByName("ResetTokens");
+  if (!rtSheet) {
+    rtSheet = ss.insertSheet("ResetTokens");
+    rtSheet.appendRow(["Email", "Code", "Expiry"]);
+  }
+
+  // Eliminar tokens previos del mismo email
+  const data = rtSheet.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).toLowerCase() === email.toLowerCase()) {
+      rtSheet.deleteRow(i + 1);
+    }
+  }
+
+  rtSheet.appendRow([email.toLowerCase(), code, expiry]);
+
+  // Enviar email con el código
+  GmailApp.sendEmail(
+    email,
+    "🔑 Código de recuperación — BetControl Pro",
+    "",
+    {
+      htmlBody: `
+        <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;background:#070b18;color:#f8fafc;border-radius:16px;overflow:hidden">
+          <div style="background:linear-gradient(135deg,#0ea5e9,#7c3aed);padding:28px 32px;text-align:center">
+            <h1 style="margin:0;font-size:24px;color:#fff">⚽ BetControl Pro</h1>
+          </div>
+          <div style="padding:32px">
+            <h2 style="font-size:20px;margin-bottom:12px;color:#f8fafc">Recuperación de contraseña</h2>
+            <p style="color:#94a3b8;margin-bottom:24px">Usa el siguiente código para restablecer tu contraseña. Expira en <strong style="color:#f8fafc">15 minutos</strong>.</p>
+            <div style="background:#0f172a;border:1px solid #1e3a5f;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
+              <span style="font-size:40px;font-weight:900;letter-spacing:10px;color:#38bdf8">${code}</span>
+            </div>
+            <p style="color:#64748b;font-size:12px">Si no solicitaste este código, ignora este mensaje.</p>
+          </div>
+        </div>
+      `
+    }
+  );
+
+  return { status: "ok" };
+}
+
+function confirmReset({ email, code, newPasswordHash }) {
+  if (!email || !code || !newPasswordHash) return { status: "error", message: "Datos incompletos" };
+
+  const ss      = SpreadsheetApp.getActiveSpreadsheet();
+  const rtSheet = ss.getSheetByName("ResetTokens");
+  if (!rtSheet) return { status: "error", message: "Código inválido o expirado" };
+
+  const data = rtSheet.getDataRange().getValues();
+  let found  = null;
+  let rowIdx = -1;
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).toLowerCase() === email.toLowerCase() && String(data[i][1]) === String(code)) {
+      found  = data[i];
+      rowIdx = i + 1;
+      break;
+    }
+  }
+
+  if (!found) return { status: "error", message: "Código incorrecto" };
+  if (new Date(found[2]) < new Date()) {
+    rtSheet.deleteRow(rowIdx);
+    return { status: "error", message: "El código ha expirado. Solicita uno nuevo" };
+  }
+
+  // Actualizar contraseña en hoja Usuarios
+  const usersSheet = getUsersSheet();
+  const rows = usersSheet.getDataRange().getValues();
+  const headers = rows[0];
+  const emailIdx = headers.indexOf("Email");
+  const hashIdx  = headers.indexOf("PasswordHash");
+
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][emailIdx]).toLowerCase() === email.toLowerCase()) {
+      usersSheet.getRange(i + 1, hashIdx + 1).setValue(newPasswordHash);
+      break;
+    }
+  }
+
+  rtSheet.deleteRow(rowIdx);
+  return { status: "ok" };
 }
 
 // ── Data actions ──────────────────────────────────────────────────────────────
