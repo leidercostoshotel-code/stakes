@@ -1764,14 +1764,26 @@
       }
     }
 
-    async function authPost(payload) {
-      const url = localStorage.getItem(GS_URL_KEY) || GS_DEFAULT_URL;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+    function authJsonp(params) {
+      return new Promise((resolve, reject) => {
+        const url  = localStorage.getItem(GS_URL_KEY) || GS_DEFAULT_URL;
+        const cb   = "gsAuth_" + Date.now();
+        const el   = document.createElement("script");
+        const tid  = setTimeout(() => { cleanup(); reject(new Error("Tiempo de espera agotado")); }, 15000);
+        function cleanup() { clearTimeout(tid); delete window[cb]; if (el.parentNode) el.parentNode.removeChild(el); }
+        window[cb] = json => { cleanup(); resolve(json); };
+        el.onerror = () => { cleanup(); reject(new Error("No se pudo conectar")); };
+        const qs = Object.entries(params).map(([k,v]) => k + "=" + encodeURIComponent(v)).join("&");
+        el.src = url + "?" + qs + "&callback=" + cb;
+        document.body.appendChild(el);
       });
-      return res.json();
+    }
+
+    async function authPost(payload) {
+      // JSONP GET para evitar el bloqueo CORS del preflight en Apps Script
+      const params = { action: payload.action, userId: payload.email || "", passwordHash: payload.passwordHash || "" };
+      if (payload.name) params.name = payload.name;
+      return authJsonp(params);
     }
 
     function persistSession(session, remember) {

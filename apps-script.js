@@ -68,17 +68,20 @@ function verifyUser(email, passwordHash) {
 // ── HTTP handlers ─────────────────────────────────────────────────────────────
 
 function doGet(e) {
-  const action   = e.parameter.action;
-  const callback = e.parameter.callback;
+  const action       = e.parameter.action;
+  const callback     = e.parameter.callback;
+  const userId       = e.parameter.userId       || "";
+  const passwordHash = e.parameter.passwordHash || "";
   let result;
 
-  if (action === "load") {
-    const userId      = e.parameter.userId || "";
-    const passwordHash = e.parameter.passwordHash || "";
-    result = loadData(userId, passwordHash);
-  } else {
-    result = { status: "error", message: "Acción no reconocida" };
-  }
+  if      (action === "load")     result = loadData(userId, passwordHash);
+  else if (action === "login")    result = loginUser({ email: userId, passwordHash });
+  else if (action === "register") result = registerUser({
+    name: e.parameter.name || "",
+    email: userId,
+    passwordHash
+  });
+  else result = { status: "error", message: "Acción no reconocida" };
 
   const json = JSON.stringify(result);
   if (callback) {
